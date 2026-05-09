@@ -1269,17 +1269,24 @@ window.sendMessage = async function() {
   closeEmoji();
 
   try {
+    // First update chat metadata so list refreshes immediately
+    const chatRef = doc(db, 'chats', activeChatId);
+    const chatSnap = await getDoc(chatRef);
+    const currentUnread = chatSnap.data()?.unreadCount?.[activeChatUser.uid] || 0;
+    const unreadField = `unreadCount.${activeChatUser.uid}`;
+
+    await updateDoc(chatRef, {
+      lastMessage: text,
+      lastMessageTime: serverTimestamp(),
+      [unreadField]: currentUnread + 1
+    });
+
+    // Then save the message
     await addDoc(collection(db, 'chats', activeChatId, 'messages'), {
       text,
       senderId: currentUser.uid,
       timestamp: serverTimestamp(),
       read: false
-    });
-    const unreadField = `unreadCount.${activeChatUser.uid}`;
-    await updateDoc(doc(db, 'chats', activeChatId), {
-      lastMessage: text,
-      lastMessageTime: serverTimestamp(),
-      [unreadField]: (await getDoc(doc(db, 'chats', activeChatId))).data()?.unreadCount?.[activeChatUser.uid] + 1 || 1
     });
   } catch(e) {
     showToast('Error al enviar ❌');
