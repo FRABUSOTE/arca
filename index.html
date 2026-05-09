@@ -1225,9 +1225,12 @@ window.openChat = function(chatId, otherUser) {
 function loadMessages(chatId) {
   if (messagesUnsub) messagesUnsub();
   const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc'));
-  messagesUnsub = onSnapshot(q, (snap) => {
+  let renderedCount = 0;
+messagesUnsub = onSnapshot(q, (snap) => {
     const area = document.getElementById('messagesArea');
-    area.innerHTML = '';
+    const newDocs = snap.docs.slice(renderedCount);
+    if (renderedCount === 0) area.innerHTML = '';
+    renderedCount = snap.docs.length;
     let lastDate = '';
     snap.docs.forEach(d => {
       const msg = d.data();
