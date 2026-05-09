@@ -417,7 +417,7 @@ html, body {
 /* FAB */
 .fab {
   position: absolute;
-  bottom: 24px; right: 24px;
+  bottom: 80px; right: 24px;
   width: 56px; height: 56px;
   background: #2E7D32;
   border: none;
@@ -1178,8 +1178,6 @@ function renderChatsList(chats) {
     const u = chat.otherUser;
     const initial = getInitial(u.name || u.username || '?');
     const unread = (chat.unreadCount && chat.unreadCount[currentUser.uid]) || 0;
-    const time = chat.lastMessageTime ? formatTime(chat.lastMessageTime.toDate()) : '';
-    const preview = chat.lastMessage || 'Sin mensajes aún';
     const item = document.createElement('div');
     item.className = 'chat-item';
     item.innerHTML = `
@@ -1189,10 +1187,9 @@ function renderChatsList(chats) {
       </div>
       <div class="chat-info">
         <div class="chat-name">${escapeHtml(u.name || u.username)}</div>
-        <div class="chat-preview">${escapeHtml(preview)}</div>
+        <div class="chat-preview" style="color:var(--text-muted);font-size:13px">Toca para ver la conversación</div>
       </div>
       <div class="chat-meta">
-        <div class="chat-time">${time}</div>
         ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
       </div>
     `;
@@ -1269,25 +1266,11 @@ window.sendMessage = async function() {
   closeEmoji();
 
   try {
-    const chatRef = doc(db, 'chats', activeChatId);
-    const unreadField = `unreadCount.${activeChatUser.uid}`;
-
-    // Both operations in parallel — no delay, no jump
-    const [chatSnap] = await Promise.all([
-      getDoc(chatRef),
-      addDoc(collection(db, 'chats', activeChatId, 'messages'), {
-        text,
-        senderId: currentUser.uid,
-        timestamp: serverTimestamp(),
-        read: false
-      })
-    ]);
-
-    const currentUnread = chatSnap.data()?.unreadCount?.[activeChatUser.uid] || 0;
-    await updateDoc(chatRef, {
-      lastMessage: text,
-      lastMessageTime: serverTimestamp(),
-      [unreadField]: currentUnread + 1
+    await addDoc(collection(db, 'chats', activeChatId, 'messages'), {
+      text,
+      senderId: currentUser.uid,
+      timestamp: serverTimestamp(),
+      read: false
     });
   } catch(e) {
     showToast('Error al enviar ❌');
