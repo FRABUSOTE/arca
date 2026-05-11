@@ -423,7 +423,10 @@ window.openChat = function(chatId, otherUser) {
   document.getElementById('bottomNav').style.display='none';
   switchViewInternal('chat');
   loadMessages(chatId);
+  // Limpiar badge en Firebase Y en la lista local
   updateDoc(doc(db,'chats',chatId),{[`unreadCount.${currentUser.uid}`]:0}).catch(()=>{});
+  const localChat = allChats.find(c=>c.id===chatId);
+  if (localChat && localChat.unreadCount) localChat.unreadCount[currentUser.uid] = 0;
 };
 
 function loadMessages(chatId) {
@@ -487,6 +490,8 @@ window.backToChats = function() {
   document.getElementById('bottomNav').style.display='flex';
   document.getElementById('topbar').innerHTML=`<div class="topbar-logo">Arca</div><div style="flex:1"></div><button class="topbar-btn" onclick="showProfile()">👤</button>`;
   switchViewInternal('chats');
+  // Forzar refresco de la lista para limpiar el badge
+  renderChatsList(allChats);
 };
 
 window.searchUser = async function() {
