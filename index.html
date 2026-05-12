@@ -224,9 +224,20 @@ html,body{height:100%;overflow:hidden;background:#fff;font-family:'DM Sans',sans
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+import { 
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc, setDoc, getDoc,
+  collection, addDoc,
+  query, where, orderBy,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc,
+  limit
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCWyf1QckHFRMiSGrgNtVGtezM15SRR4hY",
@@ -241,10 +252,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentUser=null, currentUserData=null;
-let activeChatId=null, activeChatUser=null;
-let messagesUnsub=null, chatsUnsub=null;
-let allChats=[];
+let currentUser = null;
+let currentUserData = null;
+
+let activeChatId = null;
+let activeChatUser = null;
+
+let chatsUnsub = null;
+let messagesUnsub = null;
+
+let chatCache = new Map();
 
 // --- LÓGICA DE NAVEGACIÓN Y VISTAS ---
 window.switchTab = (mode) => {
@@ -263,36 +280,45 @@ window.showView = (view) => {
 };
 window.backToChats = () => {
 
-  document.getElementById('chatView')
-    .classList.remove('active');
+  // cerrar chat
+  document.getElementById('chatView').classList.remove('active');
 
-  document.getElementById('chatsView')
-    .classList.add('active');
+  // volver lista
+  document.getElementById('chatsView').classList.add('active');
 
-  document.getElementById('bottomNav')
-    .style.display = 'flex';
+  // mostrar nav
+  document.getElementById('bottomNav').style.display = 'flex';
 
-  document.getElementById('topbar').innerHTML = `
-    <div class="topbar-logo">Arca</div>
-    <div style="flex:1"></div>
-    <button class="topbar-btn" onclick="showView('profile')">👤</button>
-  `;
+  // limpiar chat activo
+  activeChatId = null;
+  activeChatUser = null;
 
+  // limpiar mensajes (evita residuos visuales)
+  document.getElementById('messagesArea').innerHTML = '';
+
+  // IMPORTANTE: NO toques topbar.innerHTML aquí
 };
 // --- AUTH ---
 onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    currentUser = user;
-    const snap = await getDoc(doc(db,'users',user.uid));
-    if (snap.exists()) {
-      currentUserData = snap.data();
-      initApp();
-    }
-  } else {
-    document.getElementById('authScreen').classList.add('active');
-    document.getElementById('appScreen').classList.remove('active');
-    document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('loadingOverlay').style.display = 'none';
+
+  if (!user) {
+    resetUI();
+    return;
   }
+
+  currentUser = user;
+
+  const snap = await getDoc(doc(db, "users", user.uid));
+
+  if (!snap.exists()) {
+    await signOut(auth);
+    return;
+  }
+
+  currentUserData = snap.data();
+
+  enterApp();
 });
 
 function initApp() {
@@ -327,71 +353,116 @@ window.doLogout = () => signOut(auth);
 
 // --- CHATS ---
 function loadChats() {
-  const q = query(collection(db,'chats'), where('members','array-contains',currentUser.uid));
+  const q = query(
+    collection(db, "chats"),
+    where("members", "array-contains", currentUser.uid)
+  );
+
   chatsUnsub = onSnapshot(q, async (snap) => {
-    const list = document.getElementById('chatsList');
-    list.innerHTML = '';
+    const list = document.getElementById("chatsList");
+    list.innerHTML = "";
+
+    let chats = [];
+
     for (const d of snap.docs) {
       const chat = d.data();
       const otherId = chat.members.find(m => m !== currentUser.uid);
-      const otherSnap = await getDoc(doc(db, 'users', otherId));
-      const otherData = otherSnap.data();
-      
-      const item = document.createElement('div');
-      item.className = 'chat-item';
+
+      const userSnap = await getDoc(doc(db, "users", otherId));
+      const userData = userSnap.data();
+
+      chats.push({
+        id: d.id,
+        userData,
+        lastMsg: chat.lastMsg || "",
+        updatedAt: chat.updatedAt || 0
+      });
+    }
+
+    // 🔥 orden tipo WhatsApp
+    chats.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    chats.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "chat-item";
+
       item.innerHTML = `
-        <div class="chat-avatar">${otherData.name.charAt(0).toUpperCase()}</div>
+        <div class="chat-avatar">${c.userData.name.charAt(0).toUpperCase()}</div>
         <div class="chat-info">
-          <div class="chat-name">${otherData.name}</div>
-          <div class="chat-preview">Toca para conversar</div>
+          <div class="chat-name">${c.userData.name}</div>
+          <div class="chat-preview">${c.lastMsg || "Sin mensajes aún"}</div>
         </div>
       `;
-      item.onclick = () => openChat(d.id, otherData);
+
+      item.onclick = () => openChat(c.id, c.userData);
+
       list.appendChild(item);
-    }
+    });
   });
 }
 
-window.openChat = (chatId, otherUser) => {
+window.openChat = (chatId, user) => {
   activeChatId = chatId;
-  activeChatUser = otherUser;
-  document.getElementById('topbar').innerHTML = `
+  activeChatUser = user;
+
+  document.getElementById("chatsView").classList.remove("active");
+  document.getElementById("chatView").classList.add("active");
+
+  document.getElementById("bottomNav").style.display = "none";
+
+  document.getElementById("topbar").innerHTML = `
     <button class="topbar-back" onclick="backToChats()">‹</button>
-    <div class="topbar-avatar">${otherUser.name.charAt(0).toUpperCase()}</div>
-    <div class="topbar-title">${otherUser.name}</div>
+    <div class="topbar-avatar">${user.name.charAt(0).toUpperCase()}</div>
+    <div class="topbar-title">${user.name}</div>
   `;
-  document.getElementById('chatsView').classList.remove('active');
-  document.getElementById('chatView').classList.add('active');
-  document.getElementById('bottomNav').style.display = 'none';
+
   loadMessages(chatId);
 };
 
 function loadMessages(chatId) {
-  const q = query(collection(db,'chats',chatId,'messages'), orderBy('timestamp','asc'));
-  onSnapshot(q, (snap) => {
-    const area = document.getElementById('messagesArea');
-    area.innerHTML = '';
-    snap.docs.forEach(d => {
+  const q = query(
+    collection(db, "chats", chatId, "messages"),
+    orderBy("timestamp", "asc")
+  );
+
+  messagesUnsub = onSnapshot(q, (snap) => {
+    const area = document.getElementById("messagesArea");
+    area.innerHTML = "";
+
+    snap.forEach(d => {
       const m = d.data();
-      const isOut = m.senderId === currentUser.uid;
-      const b = document.createElement('div');
-      b.className = `msg-bubble ${isOut?'out':'in'}`;
-      b.innerHTML = `<div class="msg-content">${m.text}</div>`;
-      area.appendChild(b);
+      const isMe = m.senderId === currentUser.uid;
+
+      const el = document.createElement("div");
+      el.className = `msg-bubble ${isMe ? "out" : "in"}`;
+      el.innerHTML = `<div class="msg-content">${m.text}</div>`;
+
+      area.appendChild(el);
     });
+
     area.scrollTop = area.scrollHeight;
   });
 }
 
 window.sendMessage = async () => {
-  const input = document.getElementById('msgInput');
-  if(!input.value.trim()) return;
-  await addDoc(collection(db,'chats',activeChatId,'messages'), {
-    text: input.value,
+  const input = document.getElementById("msgInput");
+  if (!input.value.trim()) return;
+
+  const text = input.value;
+
+  await addDoc(collection(db, "chats", activeChatId, "messages"), {
+    text,
     senderId: currentUser.uid,
     timestamp: serverTimestamp()
   });
-  input.value = '';
+
+  // 🔥 ACTUALIZA PREVIEW DEL CHAT
+  await updateDoc(doc(db, "chats", activeChatId), {
+    lastMsg: text,
+    updatedAt: Date.now()
+  });
+
+  input.value = "";
 };
 
 // --- CONTACTOS ---
