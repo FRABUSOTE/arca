@@ -261,7 +261,24 @@ window.showView = (view) => {
   document.getElementById('navChats').classList.toggle('active', view === 'chats');
   document.getElementById('navProfile').classList.toggle('active', view === 'profile');
 };
+window.backToChats = () => {
 
+  document.getElementById('chatView')
+    .classList.remove('active');
+
+  document.getElementById('chatsView')
+    .classList.add('active');
+
+  document.getElementById('bottomNav')
+    .style.display = 'flex';
+
+  document.getElementById('topbar').innerHTML = `
+    <div class="topbar-logo">Arca</div>
+    <div style="flex:1"></div>
+    <button class="topbar-btn" onclick="showView('profile')">👤</button>
+  `;
+
+};
 // --- AUTH ---
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -339,7 +356,7 @@ window.openChat = (chatId, otherUser) => {
   activeChatId = chatId;
   activeChatUser = otherUser;
   document.getElementById('topbar').innerHTML = `
-    <button class="topbar-back" onclick="location.reload()">‹</button>
+    <button class="topbar-back" onclick="backToChats()">‹</button>
     <div class="topbar-avatar">${otherUser.name.charAt(0).toUpperCase()}</div>
     <div class="topbar-title">${otherUser.name}</div>
   `;
