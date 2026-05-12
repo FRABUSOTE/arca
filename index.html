@@ -231,6 +231,7 @@ import {
 import {
   getFirestore,
   doc, setDoc, getDoc,
+  getDocs,
   collection, addDoc,
   query, where, orderBy,
   onSnapshot,
@@ -262,13 +263,45 @@ let chatsUnsub = null;
 let messagesUnsub = null;
 
 let chatCache = new Map();
+function resetUI() {
 
+  // UI: volver a login
+  document.getElementById('authScreen').classList.add('active');
+  document.getElementById('appScreen').classList.remove('active');
+
+  // limpiar usuario
+  currentUser = null;
+  currentUserData = null;
+
+  // cerrar listeners si existen
+ chatsUnsub?.();
+ messagesUnsub?.();
+
+  chatsUnsub = null;
+  messagesUnsub = null;
+
+  // limpiar chat activo
+  activeChatId = null;
+  activeChatUser = null;
+
+  // limpiar listas
+  document.getElementById("chatsList").innerHTML = "";
+  document.getElementById("messagesArea").innerHTML = "";
+
+  // reset topbar
+  document.getElementById("topbar").innerHTML = `
+    <div class="topbar-logo">Arca</div>
+    <div style="flex:1"></div>
+    <button class="topbar-btn" onclick="showView('profile')">👤</button>
+  `;
+}
 // --- LÓGICA DE NAVEGACIÓN Y VISTAS ---
-window.switchTab = (mode) => {
+window.switchTab = (mode, el = event.currentTarget) => {
   document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
   document.getElementById('registerForm').style.display = mode === 'login' ? 'none' : 'block';
+
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  el.classList.add('active');
 };
 
 window.showView = (view) => {
@@ -309,26 +342,46 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = user;
 
-  const snap = await getDoc(doc(db, "users", user.uid));
+  let snap = await getDoc(doc(db, "users", user.uid));
 
   if (!snap.exists()) {
-    await signOut(auth);
-    return;
+    await setDoc(doc(db, "users", user.uid), {
+      name: "Usuario",
+      username: "user_" + user.uid.slice(0,5),
+      email: user.email
+    });
+
+    // 🔥 IMPORTANTE: volver a leer
+    snap = await getDoc(doc(db, "users", user.uid));
   }
 
   currentUserData = snap.data();
 
-  enterApp();
+  initApp();
 });
 
 function initApp() {
-  document.getElementById('profileAvatar').textContent = currentUserData.name.charAt(0).toUpperCase();
-  document.getElementById('profileName').textContent = currentUserData.name;
-  document.getElementById('profileUsername').textContent = '@' + currentUserData.username;
-  document.getElementById('profileEmail').textContent = currentUser.email;
+  if (!currentUserData) {
+    console.error("No hay user data");
+    return;
+  }
+
+  document.getElementById('profileAvatar').textContent =
+    currentUserData.name?.charAt(0)?.toUpperCase() || "?";
+
+  document.getElementById('profileName').textContent =
+    currentUserData.name || "Sin nombre";
+
+  document.getElementById('profileUsername').textContent =
+    '@' + (currentUserData.username || "usuario");
+
+  document.getElementById('profileEmail').textContent =
+    currentUser.email || "";
+
   document.getElementById('authScreen').classList.remove('active');
   document.getElementById('appScreen').classList.add('active');
   document.getElementById('loadingOverlay').style.display = 'none';
+
   loadChats();
 }
 
