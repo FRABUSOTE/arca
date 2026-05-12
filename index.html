@@ -63,10 +63,73 @@ html,body{height:100%;overflow:hidden;background:#fff;font-family:'DM Sans',sans
 .chat-item:active{background:#F0F7FF}
 .chat-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#007AFF,#42A5F5);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;position:relative}
 .online-dot{width:12px;height:12px;background:#00D166;border-radius:50%;border:2px solid #fff;position:absolute;bottom:1px;right:1px}
-.chat-info{flex:1;min-width:0}
-.chat-name{font-size:15px;font-weight:600;color:#1A1A1A}
-.chat-preview{font-size:13px;color:rgba(0,0,0,0.4);margin-top:2px}
-.unread-badge{background:#007AFF;color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.chat-item{
+  display:flex;
+  align-items:center;
+  padding:14px 20px;
+  gap:14px;
+  cursor:pointer;
+  background:#fff;
+  border-bottom:1px solid rgba(0,0,0,0.04);
+  transition:background 0.15s;
+}
+
+.chat-item:active{
+  background:#F0F7FF;
+}
+
+.chat-avatar{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#007AFF,#42A5F5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  font-weight:700;
+  color:#fff;
+  flex-shrink:0;
+  position:relative;
+}
+
+.chat-info{
+  flex:1;
+  min-width:0; /* 🔥 CLAVE para que no se rompa el texto */
+}
+
+.chat-name{
+  font-size:15px;
+  font-weight:600;
+  color:#1A1A1A;
+}
+
+.chat-preview{
+  font-size:13px;
+  color:rgba(0,0,0,0.45);
+  margin-top:2px;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  max-width: 100%;
+}
+
+.unread-badge{
+  background:#007AFF;
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+  min-width:20px;
+  height:20px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 5px;
+  flex-shrink:0;
+}
 
 .fab{position:absolute;bottom:80px;right:24px;width:56px;height:56px;background:#007AFF;border:none;border-radius:50%;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(0,122,255,0.4);display:flex;align-items:center;justify-content:center;z-index:5}
 
@@ -436,21 +499,27 @@ function loadChats() {
     chats.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
     chats.forEach(c => {
-      const item = document.createElement("div");
-      item.className = "chat-item";
 
-      item.innerHTML = `
-        <div class="chat-avatar">${c.userData.name.charAt(0).toUpperCase()}</div>
-        <div class="chat-info">
-          <div class="chat-name">${c.userData.name}</div>
-          <div class="chat-preview">${c.lastMsg || "Sin mensajes aún"}</div>
-        </div>
-      `;
+  const preview =
+    c.lastMsg?.length > 40
+      ? c.lastMsg.slice(0, 40) + "..."
+      : c.lastMsg || "Sin mensajes aún";
 
-      item.onclick = () => openChat(c.id, c.userData);
+  const item = document.createElement("div");
+  item.className = "chat-item";
 
-      list.appendChild(item);
-    });
+  item.innerHTML = `
+    <div class="chat-avatar">${c.userData.name.charAt(0).toUpperCase()}</div>
+    <div class="chat-info">
+      <div class="chat-name">${c.userData.name}</div>
+      <div class="chat-preview">${preview}</div>
+    </div>
+  `;
+
+  item.onclick = () => openChat(c.id, c.userData);
+
+  list.appendChild(item);
+});
   });
 }
 
