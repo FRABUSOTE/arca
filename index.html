@@ -455,14 +455,50 @@ window.doLogin = async () => {
 };
 
 window.doRegister = async () => {
-  const n = document.getElementById('regName').value;
-  const u = document.getElementById('regUsername').value;
-  const e = document.getElementById('regEmail').value;
+
+  const n = document.getElementById('regName').value.trim();
+  const u = document.getElementById('regUsername').value.trim().toLowerCase();
+  const e = document.getElementById('regEmail').value.trim();
   const p = document.getElementById('regPassword').value;
+
   try {
+
+    // Validación básica
+    if (!n || !u || !e || !p) {
+      showToast("Completa todos los campos");
+      return;
+    }
+
+    // Crear usuario auth
     const res = await createUserWithEmailAndPassword(auth, e, p);
-    await setDoc(doc(db, 'users', res.user.uid), { name: n, username: u, email: e, online: true });
-  } catch(err) { showToast("Error al registrar"); }
+
+    // Guardar datos usuario
+    await setDoc(doc(db, 'users', res.user.uid), {
+      name: n,
+      username: u,
+      email: e,
+      online: true
+    });
+
+    showToast("Cuenta creada correctamente");
+
+  } catch(err) {
+
+    console.error(err);
+
+    if (err.code === "auth/email-already-in-use") {
+      showToast("Ese correo ya está registrado");
+    }
+    else if (err.code === "auth/invalid-email") {
+      showToast("Correo inválido");
+    }
+    else if (err.code === "auth/weak-password") {
+      showToast("La contraseña debe tener mínimo 6 caracteres");
+    }
+    else {
+      showToast(err.code || "Error al registrar");
+    }
+  }
 };
 
 window.doLogout = () => signOut(auth);
