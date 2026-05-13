@@ -251,12 +251,68 @@ html,body{height:100%;overflow:hidden;background:#fff;font-family:'DM Sans',sans
   </div>
 
   <div class="view" id="profileView" style="padding:24px; gap:16px;">
-    <div class="profile-hero">
-      <div class="profile-big-avatar" id="profileAvatar">?</div>
-      <div class="profile-name" id="profileName">—</div>
-      <div class="profile-username" id="profileUsername">@—</div>
-      <div style="font-size:13px; color:gray; margin-top:4px" id="profileEmail">—</div>
+
+  <div class="profile-hero">
+    <div class="profile-big-avatar" id="profileAvatar">?</div>
+
+    <div class="profile-name" id="profileName">—</div>
+
+    <div class="profile-username" id="profileUsername">@—</div>
+
+    <div style="font-size:13px; color:gray; margin-top:4px"
+         id="profileEmail">
+      —
     </div>
+  </div>
+
+  <div class="profile-hero" style="padding:0; overflow:hidden;">
+
+    <div class="profile-item"
+         onclick="doLogout()"
+         style="border:none">
+
+      <div class="profile-item-icon pi-red">🚪</div>
+
+      <div style="flex:1; text-align:left; color:#E74C3C; font-weight:600">
+        Cerrar sesión
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- PERFIL DE OTRO USUARIO -->
+<div class="view"
+     id="userProfileView"
+     style="padding:24px; gap:16px;">
+
+  <div class="profile-hero">
+
+    <div class="profile-big-avatar"
+         id="userProfileAvatar">
+      M
+    </div>
+
+    <div class="profile-name"
+         id="userProfileName">
+      Usuario
+    </div>
+
+    <div class="profile-username"
+         id="userProfileUsername">
+      @usuario
+    </div>
+
+    <div style="font-size:13px; color:gray; margin-top:4px"
+         id="userProfileEmail">
+      correo@gmail.com
+    </div>
+
+  </div>
+
+</div>
     <div class="profile-hero" style="padding:0; overflow:hidden;">
       <div class="profile-item" onclick="doLogout()" style="border:none">
         <div class="profile-item-icon pi-red">🚪</div>
@@ -570,7 +626,7 @@ window.openChat = (chatId, user) => {
 
   document.getElementById("topbar").innerHTML = `
     <button class="topbar-back" onclick="backToChats()">‹</button>
-    <div class="topbar-avatar">${user.name.charAt(0).toUpperCase()}</div>
+    <div class="topbar-avatar" onclick="openUserProfile()">${user.name.charAt(0).toUpperCase()}</div>
     <div class="topbar-title">${user.name}</div>
   `;
 
